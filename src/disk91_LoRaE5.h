@@ -13,20 +13,12 @@
 #define __DISK91_LORAE5_H__
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
+#include <Stream.h>
 
 // ==========================================================
 // Setup options
 
-#ifdef SEEED_WIO_TERMINAL
-    // Supports 2 Serial
-    #define __SERIAL1
-    #define __SERIAL2
-    #define DSKLORAE5_SEARCH_WIO        0x0B        // Search for the LoRa-E5 on the different port of the WIO
-    #define DSKLORAE5_SWSERIAL_WIO_P1   0x1A        // LoRa-E5 on WIO Software serial 1 (RX:BCM3 / TX:BCM2)
-    #define DSKLORAE5_SWSERIAL_WIO_P2   0x1B        // LoRa-E5 on WIO Software serial 2 (RX:BCM27 / TW:BCM22)
-    #define DSKLORAE5_DISABLE_FSTR                  // Disable Flash String support
-#endif
+
 
 #ifdef __SERIAL1
     #define DSKLORAE5_HWSERIAL1         0x01        // LoRa-E5 on serial port 1
@@ -70,10 +62,10 @@
 #define __DSKLORAE5_UNSET_POWER      -100  
 
 #define __HWSERIAL_T                  Uart         // type to be used for hardware serial, apprantly different are existing
-#define __DSKLORAE5_DEFAULT_AT_TMOUT  2000         // default time for AT command timeout in Ms
+#define __DSKLORAE5_DEFAULT_AT_TMOUT  8000         // default time for AT command timeout in Ms
 #define __DSKLORAE5_JOIN_TIMEOUT     12000         // Specific timeout for Join procedure in Ms
-#define __DSKLORAE5_TX_TIMEOUT_BASE   3200         // Specific timeout for Tx w/o ack ( tx time will be added )
-#define __DSKLORAE5_TX_TIMEOUT_ACK    3500         // Time to add for Ack / Downlink frames
+#define __DSKLORAE5_TX_TIMEOUT_BASE   9000         // Specific timeout for Tx w/o ack ( tx time will be added )
+#define __DSKLORAE5_TX_TIMEOUT_ACK    9000         // Time to add for Ack / Downlink frames
 #define __DSKLORAE5_JOINREQ_PAYLOADSZ   24         // Estimation of a Join Req frame as a normal frame with a given payload of 24bytes
                                                    //   looking for a source to get a better estimate
 
@@ -126,10 +118,9 @@ protected:
     uint8_t               currentZone;      // The current zone set into the module for optimization
     uint32_t              estimatedDCMs;    // Next communication autorization for when DC management is not delegated to module (DC zone only)
 
-    __HWSERIAL_T        * e5Uart;           // link to hw serial for E5 communications
-    Serial_             * debugUart;        // link to serial used for debugginf
-    SoftwareSerial      * e5SwUart;         // link to the sw serial for E5 communications
-    bool                  isHwSerial;       // true when a hw serial is used
+    Stream              * e5Uart;           // link to hw serial for E5 communications
+    Stream              * debugUart;        // link to serial used for debugginf
+
 
     void tracef(const char *format, ...);         // Debug traces
     #ifndef DSKLORAE5_DISABLE_FSTR
@@ -182,21 +173,17 @@ public:
 
     Disk91_LoRaE5(
         uint16_t   atTimeoutMs,          // Default timeout in Ms for AT command execution
-        Serial_  * logSerial = NULL      // When set, the library debug is enabled               
+        Stream  * logSerial = NULL      // When set, the library debug is enabled               
     );
 
     Disk91_LoRaE5(
-        Serial_  * logSerial = NULL      // When set, the library debug is enabled               
+        Stream  * logSerial = NULL      // When set, the library debug is enabled               
     );
 
     ~Disk91_LoRaE5();
 
     bool begin(  
-        uint8_t portType = DSKLORAE5_HWSEARCH,    // where to find the LoRa-E5 board  
-        __HWSERIAL_T * hwSerial = NULL,           // for HWSERIAL_CUSTOM, link the associated Serial
-        SoftwareSerial * swSerial = NULL,         // for SWSERIAL_CUTSOM, link the associated SoftwareSerial
-        int16_t ssRxPort = -1,                    // for SWSERIAL_PINS, specify the RX & TX Pin, the SSerial will be initialized
-        int16_t ssTxPort = -1
+        Stream * hwSerial = NULL           // for HWSERIAL_CUSTOM, link the associated Serial
     );
 
     bool setup(                     // Setup the LoRaWAN stack with the stored credentials

@@ -15,30 +15,15 @@
 // Helpers
 
 void Disk91_LoRaE5::tracef(const char *format, ...) {
-    #ifdef __DSKLORAE5_ENABLE
-        if ( this->debugUart == NULL ) return;
+  if ( this->debugUart == NULL ) return;
+  this->debugUart->print(format);
 
-        va_list args;
-        char 	fmtBuffer[__DSKLORAE5_TRACE_MAX_BUF_SZ]; 
-        va_start(args,format);
-        vsnprintf(fmtBuffer,__DSKLORAE5_TRACE_MAX_BUF_SZ,format,args);
-        va_end(args);
-        this->debugUart->print(fmtBuffer);
-    #endif
 }
 
 #ifndef DSKLORAE5_DISABLE_FSTR
 void Disk91_LoRaE5::tracef(const __FlashStringHelper *format, ...) {
-    #ifdef __DSKLORAE5_ENABLE
-        if ( this->debugUart == NULL ) return;
-
-        va_list args;
-        char 	fmtBuffer[__DSKLORAE5_TRACE_MAX_BUF_SZ]; 
-        va_start(args,format);
-        vsnprintf_P(fmtBuffer,__DSKLORAE5_TRACE_MAX_BUF_SZ,format,args);
-        va_end(args);
-        this->debugUart->print(fmtBuffer);
-    #endif
+    if ( this->debugUart == NULL ) return;
+    this->debugUart->print(format);
 }
 #else
   #define F(x) x
@@ -225,7 +210,7 @@ bool Disk91_LoRaE5::haveStoredConfig( // Returns true when a configuration has a
 
 Disk91_LoRaE5::Disk91_LoRaE5(
         uint16_t  atTimeoutMs,               // Default timeout for the AT command processing
-        Serial_ * logSerial                  // When set, the library debug is enabled               
+        Stream * logSerial                  // When set, the library debug is enabled               
 ){
     this->debugUart = logSerial;
     this->runningCommand = false;
@@ -235,13 +220,14 @@ Disk91_LoRaE5::Disk91_LoRaE5(
 }
 
 Disk91_LoRaE5::Disk91_LoRaE5(
-        Serial_ * logSerial                  // When set, the library debug is enabled               
+        Stream * logSerial                  // When set, the library debug is enabled               
 ){
     this->debugUart = logSerial;
     this->runningCommand = false;
     this->atTimeout = __DSKLORAE5_DEFAULT_AT_TMOUT;
     this->currentZone = DSKLORAE5_ZONE_UNDEFINED;
     this->estimatedDCMs = 0;
+    this->debugUart->println("Hello");
 }
 
 Disk91_LoRaE5::Disk91_LoRaE5(
@@ -260,138 +246,20 @@ Disk91_LoRaE5::~Disk91_LoRaE5(){
 }
 
 bool Disk91_LoRaE5::begin(  
-        uint8_t portType,                   // where to find the LoRa-E5 board  
-        __HWSERIAL_T   * hwSerial,          // for HWSERIAL_CUSTOM, link the associated Serial
-        SoftwareSerial * swSerial,          // for SWSERIAL_CUTSOM, link the associated SoftwareSerial
-        int16_t ssRxPort,                   // for SWSERIAL_PINS, specify the RX & TX Pin, the SSerial will be initialized
-        int16_t ssTxPort
+        Stream   * hwSerial          // for HWSERIAL_CUSTOM, link the associated Serial
 ){
-    switch ( portType ) {
-        #ifdef __SERIAL
-        case DSKLORAE5_HWSERIAL:
-            this->e5Uart = &Serial;
-            this->isHwSerial = true;
-            break;
-        #endif    
-        #ifdef __SERIAL1
-        case DSKLORAE5_HWSERIAL1:
-            this->e5Uart = &Serial1;
-            this->isHwSerial = true;
-            break;
-        #endif    
-        #ifdef __SERIAL2
-        case DSKLORAE5_HWSERIAL2:
-            this->e5Uart = &Serial2;
-            this->isHwSerial = true;
-            break;
-        #endif    
-        case DSKLORAE5_HWSERIAL_CUSTOM:
-            if ( hwSerial == NULL ) {
-                this->tracef(F("LoRaE5 - invalid hw serial selection\r\n"));
-                return false;
-            }
-            this->e5Uart = hwSerial;
-            this->isHwSerial = true;
-            break;
-        case DSKLORAE5_SWSERIAL_CUSTOM:
-            if ( swSerial == NULL ) {
-                this->tracef(F("LoRaE5 - invalid sw serial selection\r\n"));
-                return false;
-            }
-            this->e5SwUart = swSerial;
-            this->isHwSerial = false;
-            break;
-        case DSKLORAE5_SWSERIAL_PINS:
-            if ( ssRxPort == -1 || ssTxPort == -1 ) {
-                this->tracef(F("LoRaE5 - invalid sw serial pins\r\n"));
-                return false;
-            }
-            this->e5SwUart = new SoftwareSerial(ssRxPort, ssTxPort,false);
-            this->isHwSerial = false;
-            break;
-        #ifdef DSKLORAE5_SWSERIAL_WIO_P1
-        case DSKLORAE5_SWSERIAL_WIO_P1:
-            this->e5SwUart = new SoftwareSerial(BCM3, BCM2,false);
-            this->isHwSerial = false;
-            break;
-        #endif
-        #ifdef DSKLORAE5_SWSERIAL_WIO_P2
-        case DSKLORAE5_SWSERIAL_WIO_P2:
-            this->e5SwUart = new SoftwareSerial(BCM27, BCM22,false);
-            this->isHwSerial = false;
-            break;
-        #endif
-
-        case DSKLORAE5_HWSEARCH:
-            #ifdef __SERIAL
-                this->e5Uart = &Serial;
-                this->isHwSerial = true;
-                if ( testPresence() ) break;
-                this->e5Uart = NULL;
-            #endif
-            #ifdef __SERIAL1
-                this->e5Uart = &Serial1;
-                this->isHwSerial = true;
-                if ( testPresence() ) break;
-                this->e5Uart = NULL;
-            #endif
-            #ifdef __SERIAL2
-                this->e5Uart = &Serial2;
-                this->isHwSerial = true;
-                if ( testPresence() ) break;
-                this->e5Uart = NULL;
-            #endif
-            this->tracef(F("LoRaE5 - not found\r\n"));
-            return false;
-            break;
-
-        #ifdef DSKLORAE5_SEARCH_WIO
-        case DSKLORAE5_SEARCH_WIO:
-            #ifdef __SERIAL1
-                this->e5Uart = &Serial1;
-                this->isHwSerial = true;
-                if ( testPresence() ) break;
-                this->e5Uart = NULL;
-            #endif
-            #ifdef __SERIAL2
-                this->e5Uart = &Serial2;
-                this->isHwSerial = true;
-                if ( testPresence() ) break;
-                this->e5Uart = NULL;
-            #endif
-            #ifdef DSKLORAE5_SWSERIAL_WIO_P1
-                this->e5SwUart = new SoftwareSerial(BCM3, BCM2,false);
-                this->isHwSerial = false;
-                if ( testPresence() ) break;
-                delete this->e5SwUart;
-                this->e5SwUart = NULL;
-            #endif
-            #ifdef DSKLORAE5_SWSERIAL_WIO_P2
-                this->e5SwUart = new SoftwareSerial(BCM27, BCM22,false);
-                this->isHwSerial = false;
-                if ( testPresence() ) break;
-                delete this->e5SwUart;
-                this->e5SwUart = NULL;
-            #endif
-            this->tracef(F("LoRaE5 - not found\r\n"));
-            return false;
-            break;
-        #endif
-    }
+    //Serial.println("In begin method");
+    this->e5Uart = hwSerial;
+    //Serial.println("Assigned Stream");
     // Init Serial
-    uint32_t start = millis();
-    if ( this->isHwSerial ) {
-        this->e5Uart->begin(9600);
-        while ( !(*this->e5Uart) && (millis() - start) < 1000 );
-    } else {
-        this->e5SwUart->begin(9600);
-        while ( !(*this->e5SwUart) && (millis() - start) < 1000 );
-    }
+    //uint32_t start = millis();
+    /*while ( !(*this->e5Uart) && (millis() - start) < 1000 );
     if ( (millis() - start) >= 1000 ) {
         this->tracef(F("LoRaE5 - Impossible to connect Serial\r\n"));
         return false;
-    }
+    }*/
     // Init contexte
+
     this->runningCommand = false;
     this->hasJoined = false;
     this->isJoining = false;
@@ -403,12 +271,12 @@ bool Disk91_LoRaE5::begin(
 
     // Verify module response
     this->runningCommand = false;
+    delay(1000);
+    //Serial.println("Sending AT Command");
     if ( !sendATCommand("AT","+AT: OK","","",this->atTimeout,false,NULL) ) {
         // retry
         if ( !sendATCommand("AT","+AT: OK","","",this->atTimeout,false,NULL) ) {
-            if ( !this->isHwSerial ) {
-                this->e5SwUart->end();
-            }
+
             return false;
         }
     }
@@ -418,23 +286,13 @@ bool Disk91_LoRaE5::begin(
 }
 
 void Disk91_LoRaE5::end() {
-    if ( this->e5SwUart != NULL ) {
-        delete this->e5SwUart;
-    }
+
 }
 
 // =============================================================================
 // Setup & test
 bool Disk91_LoRaE5::testPresence() {
-    uint32_t start = millis();
-    if ( this->isHwSerial ) {
-        this->e5Uart->begin(9600);
-        while ( !(*this->e5Uart) && (millis() - start) < 1000 );
-    } else {
-        this->e5SwUart->begin(9600);
-        while ( !(*this->e5SwUart) && (millis() - start) < 1000 );
-    }
-    if ( (millis() - start) >= 1000 ) return false;
+
     this->runningCommand = false;
     if ( !sendATCommand("AT","+AT: OK","","",this->atTimeout,false,NULL) ) {
         // retry
@@ -442,9 +300,7 @@ bool Disk91_LoRaE5::testPresence() {
             return false;
         }
     }
-    if ( !this->isHwSerial ) {
-        this->e5SwUart->end();
-    }
+
     return true;
 }
 
@@ -650,7 +506,7 @@ bool Disk91_LoRaE5::sendReceive_sync(  // send a message on LoRaWan expert an ac
         uint8_t     pwr,                // Transmission power, use DSKLORAE5_DW_UNCHANGED to keep the previous one
         uint8_t     retries             // Number of retry, use DSKLORAE5_RT_UNCHANGED to keep the previous one. retry = 0 means 1 uplink, no retry
 ){
-    this->sendReceive( port, data, sz, true, NULL, rxBuffer, rxSize, rxPort, sf, pwr, retries, false );
+    return this->sendReceive( port, data, sz, true, NULL, rxBuffer, rxSize, rxPort, sf, pwr, retries, false );
 }
 
 
@@ -663,14 +519,14 @@ bool Disk91_LoRaE5::send_sync(    // send a message on LoRaWan, return true when
         uint8_t     pwr,                // Transmission power, use DSKLORAE5_DW_UNCHANGED to keep the previous one
         uint8_t     retries             // Number of retry, use DSKLORAE5_RT_UNCHANGED to keep the previous one. retry = 0 means 1 uplink, no retry
 ){
-    this->sendReceive( port, data, sz, acked, NULL, NULL, NULL, NULL, sf, pwr, retries, false );
+    return this->sendReceive( port, data, sz, acked, NULL, NULL, NULL, NULL, sf, pwr, retries, false );
 }
 
 bool Disk91_LoRaE5::join_sync(    // send a message on LoRaWan, return true when sent is a success 
         uint8_t     sf,             // Spread Factor , use DSKLORAE5_SF_UNCHANGED to keep the previous one
         uint8_t     pwr             // Transmission power, use DSKLORAE5_DW_UNCHANGED to keep the previous one
 ){
-    this->sendReceive( 0, NULL, 0, false, NULL, NULL, NULL, NULL, sf, pwr, 0, false );
+    return this->sendReceive( 0, NULL, 0, false, NULL, NULL, NULL, NULL, sf, pwr, 0, false );
 }
 
 
@@ -690,6 +546,7 @@ bool Disk91_LoRaE5::sendReceive(    // send a message on LoRaWan, return true wh
     bool        async               // When true, the processing is made synchronously
 ) {
   char _cmd[128];
+  Serial.printf("Timeoout: %d", this->atTimeout);
 
   if ( sz == 0 && this->hasJoined && !acked ) return true; // basicaly nothing to do
   if ( this->runningCommand ) return false; // re-entering
@@ -848,6 +705,7 @@ bool Disk91_LoRaE5::sendReceive(    // send a message on LoRaWan, return true wh
       if ( !async && this->isBusy ) ret = false;
       return ret;
   } 
+  return false;
 }
 
 
@@ -988,11 +846,8 @@ bool Disk91_LoRaE5::sendATCommand(
   }
   this->respIndex = 0;
   this->lineProcessing = lineProcessing;
-  if ( this->isHwSerial ) {
-      this->e5Uart->printf("%s\r\n",cmd);
-  } else {
-      this->e5SwUart->printf("%s\r\n",cmd);
-  }
+  this->e5Uart->printf("%s\r\n",cmd);
+
 
   this->tracef("LoRaE5 - send ");
   this->tracef(cmd);
@@ -1022,15 +877,11 @@ bool Disk91_LoRaE5::processATResponse() {
     return true;
   }
   // process serial line response
-  while ( (this->isHwSerial  && this->e5Uart->available() > 0)
-       || (!this->isHwSerial && this->e5SwUart->available() > 0)
-  ) {
+  while ( (this->e5Uart->available() > 0)) {
       char c;
-      if ( this->isHwSerial ) {
-          c = this->e5Uart->read();
-      } else {
-          c = this->e5SwUart->read();
-      }
+
+        c = this->e5Uart->read();
+
       if ( (c == '\0' || c == '\r' || c == '\n' ) ) {
         if ( this->respIndex > 0 ) {
           // process line response
